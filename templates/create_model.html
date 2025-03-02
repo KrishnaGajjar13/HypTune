@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Model</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/css/bootstrap.min.css"
+    />
+  </head>
+  <body>
+    <div class="container mt-5">
+      <h2 class="text-center">Create Model for {{ framework }}</h2>
+      <!-- Flash messages for errors -->
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %} {% endif %} {% endwith %}
+
+      <form method="post" action="/submit_model">
+        <input type="hidden" name="framework" value="{{ framework }}" />
+
+        <div class="form-group">
+          <label for="modelName">Model Name</label>
+          <input
+            type="text"
+            class="form-control"
+            id="modelName"
+            name="modelName"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="purpose">Purpose</label>
+          <textarea
+            class="form-control"
+            id="purpose"
+            name="purpose"
+            rows="4"
+            placeholder="Write a description about what type of model you want, what type of dataset you will use, and its intended purpose (Min: 100 characters)"
+            required
+          ></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success">Submit</button>
+        <a href="/" class="btn btn-secondary">Back</a>
+      </form>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Model Validation</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/css/bootstrap.min.css"
+    />
+  </head>
+  <body>
+    <div class="container mt-5">
+      <h2>Model Validation</h2>
+      {% with messages = get_flashed_messages() %} {% if messages %}
+      <div class="alert alert-info">
+        {% for message in messages %}
+        <p>{{ message }}</p>
+        {% endfor %}
+      </div>
+      {% endif %} {% endwith %}
+      <p>Uploaded model path: <strong>{{ model_path }}</strong></p>
+    </div>
+  </body>
+</html>
