@@ -1,0 +1,9 @@
+Model: "Path/to/model" # Options: "Path/to/model", "Path/to/weights", Empty
+Dataset: "/home/gajjar/Desktop/Sem VIII/Code/label.jsonl"
+Framework: "TensorFlow" # Options: "TensorFlow", "PyTorch"
+Task: "Image Classification" # Options: "Image Classification", "Object Detection", "Text Classification", "Machine Translation"
+Hypmode: "Min" # "Min/Moderate/Full"
+Trials: 100 # Number of trials to run
+# Incase of machine translation, the following parameters are required
+InputLanguage: "en" # Options: "en", "es", "fr", "de", "it", "pt", "zh", "ja", "ko"
+OutputLanguage: "en" # Options: "en", "es", "fr", "de", "it", "pt", "zh", "ja", "ko"

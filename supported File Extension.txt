@@ -1,8 +1,0 @@
-.pb: TensorFlow’s saved model format.
-.h5: Keras/TensorFlow model format (HDF5).
-.tflite: TensorFlow Lite model format for mobile/embedded devices.
-.zip: Compressed archive format that may contain model files and additional assets.
-.tar.gz: Compressed archive format often used for packaging models.
-.ckpt: TensorFlow or PyTorch checkpoint file containing model weights and training state.
-.pt / .pth: PyTorch model format for saving weights and model state.
-.torchscript: PyTorch model format for optimized, Python-independent deployment.

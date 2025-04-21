@@ -1,70 +1,131 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-import os, warnings
-import torch
-import tensorflow as tf
+import os, zipfile, tarfile,  argparse, yaml, re, warnings
+from collections import Counter
+from GetModel import load_model
+from GetDataset import ReadData, DatasetCategory
 warnings.filterwarnings("ignore")
+from CreateTFModel.createtfmodel import CreateTFModel
+from CreateTorchModel.createtorchmodel import CreateTorchModel
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+    print("TensorFlow not available. TF model formats won't be supported.")
 
-app = Flask(__name__)
-app.config["UPLOAD_FOLDER"] = "uploads/"
-app.secret_key = "supersecretkey"  # For flashing error messages
+try:
+    import torch
+    import torch.nn as nn
+    PYTORCH_AVAILABLE = True
+    try:
+        import torchvision.models as models
+        TORCHVISION_AVAILABLE = True
+    except ImportError:
+        TORCHVISION_AVAILABLE = False
+        print("TorchVision not available. Some model detection features will be limited.")
+    
+    try:
+        import torchaudio.models as audio_models
+        TORCHAUDIO_AVAILABLE = True
+    except ImportError:
+        TORCHAUDIO_AVAILABLE = False
+        print("TorchAudio not available. Audio model detection features will be limited.")
 
-# Ensure upload directory exists
-UPLOAD_FOLDER = "uploads/"
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+except ImportError:
+    PYTORCH_AVAILABLE = False
+    TORCHVISION_AVAILABLE = False
+    TORCHAUDIO_AVAILABLE = False
+    print("PyTorch not available. PyTorch model formats won't be supported.")
+
+try:
+    import onnx
+    ONNX_AVAILABLE = True
+except ImportError:
+    ONNX_AVAILABLE = False
+    print("ONNX not available. ONNX model formats won't be supported.")
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+
+# Initialize argument parser
+parser = argparse.ArgumentParser(description="Hyperparameter Tuning Script")
+
+# Add arguments
+parser.add_argument("--config", type=str, required=True, help="Path to configuration file")
+#parser.add_argument("--hypmode", type=str, default="Min", help="Min/Moderate/Full")
+#parser.add_argument("--mode", type=str, default="Min", help="Goal: Minimize Loss or Maximize Accuracy")
+#parser.add_argument("--trails", type=int, default=100, help="Total Number of Trials(default:100)")
+
+# Parse arguments
+args, unknown = parser.parse_known_args()
 
 
+if not os.path.exists(args.config):
+    raise FileNotFoundError(f"Error: {args.config} not found!")
 
-@app.route("/", methods=["GET", "POST"])
-def home():
-    if request.method == "POST":
-        print("Upload function called!")  # Debugging
+try:
+    with open(args.config, "r") as file:
+        data = yaml.safe_load(file)  # Using safe_load() to avoid security risks
+except yaml.YAMLError as e:
+    print(f"Error reading YAML file: {e}")
 
-        if "file" not in request.files:
-            flash("No file part", "danger")
-            print("No file part in request")  # Debugging
-            return redirect(request.url)
+modelpath = data["Model"]
+datasetpath = data["Dataset"]
+Task = data["Task"].lower()
+Hypmode = data["Hypmode"].lower()
+if Hypmode not in ["min", "moderate", "full"]:
+    print("Invalid Hypmode. Goint with default: Min")
+trials = data["Trials"]
+if not isinstance(trials, int) or trials <= 0:
+    print("Invalid number of trials. Setting to default: 100")
+    trials = 100
 
-        file = request.files["file"]
+if not os.path.exists(datasetpath):
+    raise FileNotFoundError(f"Error: {datasetpath} not found!")
+else: 
+    data, label, count = ReadData(datasetpath, Task)
+    size, imbalance, class_imbalance = DatasetCategory(Task, count)
+    if size == "Insufficient":
+        print("Error: Insufficient data for training.")
+        print("Exiting...")
+        exit()
+    elif size == "Too Small":
+        print("Warning: Dataset is too small for training.")
+        check = input("Do you want to continue? (y/n): ").lower()
+        if check == "m":
+            print("Exiting...")
+            exit()
+        elif check == "y":
+            print("Continuing with the training...")
+        else:
+            print("Invalid input. Exiting...")
+            exit()
+    if imbalance:
+        for key,value in class_imbalance.items():
+            if value > 50 or value < -50:
+                print(f"Class {key} has {value}% samples of imbalance w.r.t. the average samples per class.")
+                print("This may lead to overfitting, can't proceed any further. Please check your dataset.")
+                print("Exiting...")
+                exit()
+    
+if not os.path.exists(modelpath):
+    print(f"Error: {modelpath} not found!")
+    print("Creating a new model...")
+    framework = data["Framework"].lower()
+    if framework == "tensorflow" or "keras" or "keras/tensorflow" or "tensorflow/keras" or "tf":
+        if not TENSORFLOW_AVAILABLE:
+            raise ImportError("TensorFlow is not available. Please install TensorFlow to use this framework.")
+        CreateTFModel(Task,Hypmode,size, imbalance, class_imbalance, data, label, count, trials)
+        # Add TensorFlow model creation code here
+        # Example: model = create_tensorflow_model()
+    elif framework == "pytorch" or "torch":
+        if not PYTORCH_AVAILABLE:
+            raise ImportError("PyTorch is not available. Please install PyTorch to use this framework.")
+        CreateTorchModel(Task,Hypmode,size, imbalance, class_imbalance, data, label, count, trials)
+    elif framework == "onnx":
+        if not ONNX_AVAILABLE:
+            raise ImportError("ONNX is not available. Please install ONNX to use this framework.")
+        # Add ONNX model creation code here
+        # Example: model = create_onnx_model()
+    else:
+        raise ValueError(f"Unsupported framework: {framework}")
 
-        if file.filename == "":
-            flash("No selected file", "danger")
-            print("No file selected")  # Debugging
-            return redirect(request.url)
-
-        # Save the uploaded file
-        file_path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-        file.save(file_path)
-        print(f"File {file.filename} uploaded successfully!")  # Debugging
-        model_path = file
-        flash("File uploaded successfully!", "success")
-
-        # Redirect to validation page
-        return redirect(url_for("validate_model", model_path=model_path))
-
-    return render_template("index.html")
-
-@app.route("/create_model", methods=["GET", "POST"])
-def create_model():
-    framework = request.args.get("framework")  # Get framework from URL parameter
-
-    if request.method == "POST":
-        model_name = request.form.get("modelName")
-        purpose = request.form.get("purpose")
-
-        # Validation
-        if len(model_name) > 15:
-            flash("Model name should not exceed 15 characters.", "danger")
-            return redirect(url_for("create_model", framework=framework))
-
-        if len(purpose) < 100:
-            flash("Description should be at least 100 characters long.", "danger")
-            return redirect(url_for("create_model", framework=framework))
-
-        flash("Model details submitted successfully!", "success")
-        return redirect(url_for("upload_file"))  # Redirect to upload page or another page
-
-    return render_template("create_model.html", framework=framework)
-
-if __name__ == "__main__":
-    app.run(debug=True)
+#model, modeltype = load_model(modelpath)

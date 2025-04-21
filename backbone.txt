@@ -1,0 +1,50 @@
+---------------------------------------------------------------------------------------------------------------------------
+Backbone | Notes
+ResNet (18/34/50/101) | Classic, strong baseline; ResNet50 is the go-to for many tasks.
+EfficientNet (B0–B7) | Modern SOTA trade-off of accuracy vs. compute. B0–B3 for fast jobs, B4+ for accuracy.
+MobileNet (V1, V2, V3) | Lightweight, great for mobile/edge deployment. V2 is very popular for transfer learning.
+DenseNet (121/169/201) | Compact and accurate, with dense connections for feature reuse.
+VGG (16, 19) | Outdated but still used in benchmarks and simple transfer tasks. Easy to work with.
+Inception (V3, V4) | Known for multi-scale filters; used in some older pipelines (e.g., GoogleNet roots).
+Vision Transformers (ViT) | Becoming popular in modern setups, especially for large datasets; needs more data to shine.
+ConvNeXt | Modern CNN with transformer-like architecture; strong on ImageNet.
+RegNet | Scalable and efficient; used in Facebook’s models.
+Swin Transformer | Hierarchical ViT variant, used in newer detection/classification tasks.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+Use Case | Recommended Backbone
+Low-data, fast train | MobileNetV2, EfficientNet-B0
+Accuracy-focused | EfficientNet-B3/B4, ResNet50/101
+Lightweight/mobile | MobileNetV2/V3, EfficientNet-B0
+Large dataset / SOTA | ConvNeXt, ViT, Swin
+Beginner-friendly | ResNet50, VGG16, MobileNetV2
+
+---------------------------------------------------------------------------------------------------------------------------
+
+Detection Model | Default Backbone(s) | Notes
+Faster R-CNN | ResNet50, ResNet101 | High accuracy, slower
+RetinaNet | ResNet50 | Balanced one-stage detector
+SSD | VGG16, MobileNetV2 | Lightweight, older but fast
+YOLOv5/6/8 | CSPDarkNet, MobileNet, ConvNeXt | Super fast, easy to use
+EfficientDet | EfficientNet B0–B7 | High accuracy, scalable
+DETR / DINO | ResNet101, ViT, Swin | Transformer-based detectors
+
+---------------------------------------------------------------------------------------------------------------------------
+
+Backbone | Object Detection Use? | Notes
+ResNet | ✅ ✅ ✅ | Most common baseline
+MobileNet | ✅ ✅ | Great for real-time / edge
+EfficientNet | ✅ ✅ | Used in EfficientDet
+VGG | ✅ (for SSD) | Old-school but works
+ViT / Swin | ✅ ✅ (for DETR, DINO) | Transformer-based detection
+DenseNet | 🚫 (not common) | Not ideal for detection (complex skip connections)
+
+---------------------------------------------------------------------------------------------------------------------------
+
+Model | Speed | Accuracy | Complexity | Custom Backbones? | Real-Time Ready
+RetinaNet | ⚡⚡ | 🎯🎯🎯 | Medium | ✅✅✅ | ✅
+YOLOv8 | ⚡⚡⚡ | 🎯🎯🎯 | Low | ✅✅✅ (Ultralytics) | ✅✅✅
+EfficientDet | ⚡⚡ | 🎯🎯🎯 | Medium | ✅✅ (EfficientNet etc.) | ✅✅
+Faster R-CNN | ⚡ | 🎯🎯🎯🎯 | High | ✅✅✅ | ⚠️ (Not real-time)
+SSD | ⚡⚡ | 🎯🎯 | Low | ✅✅ (MobileNet, VGG) | ✅✅
