@@ -23,7 +23,7 @@ def ReadData(path : str, modeltype : str):
         tuple: A tuple containing the data and labels.
     """
 
-    if modeltype == 'image ilassification':
+    if modeltype == 'image classification':
         # Assuming the dataset is in a directory structure where each subdirectory is a class
         data = []
         labels = []
