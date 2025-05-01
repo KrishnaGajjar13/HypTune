@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import random
+import random, optuna
 import torch, os
 import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
