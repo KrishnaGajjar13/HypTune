@@ -87,27 +87,27 @@ def build_non_transformer_model(trial, architecture, input_len, vocab_size, num_
     model.add(Embedding(vocab_size, embedding_dim, input_length=input_len))
 
     if architecture == "SimpleRNN":
-        model.add(SimpleRNN(rnn_units))
+        model.add(SimpleRNN(rnn_units, activation="tanh"))
     elif architecture == "LSTM":
-        model.add(LSTM(rnn_units))
+        model.add(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False))
     elif architecture == "GRU":
-        model.add(GRU(rnn_units))
+        model.add(GRU(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True))
     elif architecture == "BidirectionalLSTM":
-        model.add(Bidirectional(LSTM(rnn_units)))
+        model.add(Bidirectional(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False)))
     elif architecture == "BidirectionalGRU":
-        model.add(Bidirectional(GRU(rnn_units)))
+        model.add(Bidirectional(GRU(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True)))
     elif architecture == "StackedLSTM":
-        model.add(LSTM(rnn_units, return_sequences=True))
+        model.add(LSTM(rnn_units, return_sequences=True, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False))
         model.add(Dropout(dropout_rate))
-        model.add(LSTM(rnn_units))
+        model.add(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False))
     elif architecture == "StackedBidirectionalLSTM":
-        model.add(Bidirectional(LSTM(rnn_units, return_sequences=True)))
+        model.add(Bidirectional(LSTM(rnn_units, return_sequences=True, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False)))
         model.add(Dropout(dropout_rate))
-        model.add(Bidirectional(LSTM(rnn_units)))
+        model.add(Bidirectional(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False)))
     elif architecture == "StackedBidirectionalGRU":
-        model.add(Bidirectional(GRU(rnn_units, return_sequences=True)))
+        model.add(Bidirectional(GRU(rnn_units, return_sequences=True, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True)))
         model.add(Dropout(dropout_rate))
-        model.add(Bidirectional(GRU(rnn_units)))
+        model.add(Bidirectional(GRU(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True)))
 
     model.add(Dropout(dropout_rate))
     model.add(Dense(num_classes, activation="softmax"))
@@ -207,6 +207,7 @@ def MachineTranslationStudy(
 
         # Non-transformer models
         model = build_non_transformer_model(trial, architecture, max_sequence_length, max_vocab_size, num_classes)
+
         # Compile the model
         learning_rate = trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True)
         model.compile(
@@ -214,6 +215,7 @@ def MachineTranslationStudy(
             loss="sparse_categorical_crossentropy",
             metrics=["accuracy"]
         )
+
         epochs = 10 if Hypmode in ["min", "moderate"] else 20
         callbacks = [EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True)]
 
@@ -234,7 +236,7 @@ def MachineTranslationStudy(
             "embedding_dim": trial.params.get("embedding_dim"),
             "rnn_units": trial.params.get("rnn_units"),
             "dropout": trial.params.get("dropout"),
-            "lr": trial.params.get("lr"),
+            "learning_rate": learning_rate,
             "val_split": val_split,
             "batch_size": trial.params.get("batch_size"),
             "val_accuracy": val_acc
