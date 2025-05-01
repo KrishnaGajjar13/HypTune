@@ -147,6 +147,9 @@ def MachineTranslationStudy(
     Hypmode: str,
     texts,
     labels,
+    imbalance: bool = False,
+    class_imbalance: dict = None,
+    class_counts: dict = None,
     num_trials: int = 10,
     log_csv_path: str = "translation_trials_log.csv"
 ):
@@ -163,6 +166,14 @@ def MachineTranslationStudy(
     tokenizer.fit_on_texts(texts)
     sequences = tokenizer.texts_to_sequences(texts)
     padded_sequences = pad_sequences(sequences, maxlen=max_sequence_length, padding="post", truncating="post")
+
+    # Log dataset imbalance information if provided
+    if imbalance:
+        print("Dataset is imbalanced.")
+        if class_imbalance:
+            print(f"Class imbalance details: {class_imbalance}")
+        if class_counts:
+            print(f"Class counts: {class_counts}")
 
     # Model pool based on dataset size
     model_pool = {

@@ -1,7 +1,7 @@
-from ImageClassification import ImageClassificationStudy
-from ObjectDetection import ObjectDetectionStudy
-from MachineTranslation import MachineTranslationStudy
-from TextClassification import TextClassificationStudy
+from CreateTorchModel.ImageClassification import ImageClassificationStudy
+from CreateTorchModel.ObjectDetection import ObjectDetectionStudy
+from CreateTorchModel.MachineTranslation import MachineTranslationStudy
+from CreateTorchModel.TextClassification import TextClassificationStudy
 
 def CreateTorchModel(Task: str, Hypmode : str ,size: str, data, labels, imbalance: bool = False, class_imbalance: dict = None, class_counts: dict = None,trials : int = 100):
     if Task == "image classification":

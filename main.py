@@ -87,35 +87,64 @@ else:
         print("Error: Insufficient data for training.")
         print("Exiting...")
         exit()
-    elif size == "Too Small":
+    """elif size == "Too Small":
         print("Warning: Dataset is too small for training.")
         check = input("Do you want to continue? (y/n): ").lower()
-        if check == "m":
+        if check == "n":
             print("Exiting...")
             exit()
         elif check == "y":
             print("Continuing with the training...")
         else:
             print("Invalid input. Exiting...")
-            exit()
+            exit()"""
     if imbalance:
+        extreme = False
         for key,value in class_imbalance.items():
-            if value > 50 or value < -50:
+            if value > 60 or value < -60:
+                extreme = True
                 print(f"Class {key} has {value}% samples of imbalance w.r.t. the average samples per class.")
-                print("This may lead to overfitting, can't proceed any further. Please check your dataset.")
+        if extreme:
+            print("Warning: Dataset is imbalanced.")
+            print("This may lead to overfitting.")
+            check = input("Do you want to continue? (y/n): ").lower()
+            if check == "n":
                 print("Exiting...")
                 exit()
-    
+            elif check == "y":
+                print("Continuing with the training...")
+            else:
+                print("Invalid input. Exiting...")
+                exit()
+        else:
+            check = input("Do you want to continue? (y/n): ").lower()
+            if check == "n":
+                print("Exiting...")
+                exit()
+            elif check == "y":
+                print("Continuing with the training...")
+            else:
+                print("Invalid input. Exiting...")
+                exit()
+
 if not os.path.exists(modelpath):
     print(f"Error: {modelpath} not found!")
     print("Creating a new model...")
-    framework = data["Framework"].lower()
+    framework = "tensorflow"
     if framework == "tensorflow" or "keras" or "keras/tensorflow" or "tensorflow/keras" or "tf":
         if not TENSORFLOW_AVAILABLE:
             raise ImportError("TensorFlow is not available. Please install TensorFlow to use this framework.")
-        CreateTFModel(Task,Hypmode,size, imbalance, class_imbalance, data, label, count, trials)
-        # Add TensorFlow model creation code here
-        # Example: model = create_tensorflow_model()
+        
+        # Validate dataset format
+        """        if not isinstance(data, list) or not all(isinstance(d, dict) for d in data):
+            raise ValueError("Data must be a list of dictionaries with keys 'image_path', 'boxes', and 'labels'")
+
+        # Validate label format
+        if not isinstance(label, dict):
+            raise ValueError("Label must be a dictionary mapping category IDs to names")
+"""
+        # Pass data to CreateTFModel
+        CreateTFModel(Task, Hypmode, size, imbalance, class_imbalance, data, label, count, trials)
     elif framework == "pytorch" or "torch":
         if not PYTORCH_AVAILABLE:
             raise ImportError("PyTorch is not available. Please install PyTorch to use this framework.")

@@ -24,7 +24,7 @@ def ReadData(path : str, modeltype : str):
     """
 
     if modeltype == 'image classification':
-        # Assuming the dataset is in a directory structure where each subdirectory is a class
+ # Assuming the dataset is in a directory structure where each subdirectory is a class
         data = []
         labels = []
         class_counts = defaultdict(int)  # To keep track of number of images per class
@@ -41,38 +41,47 @@ def ReadData(path : str, modeltype : str):
 
         return data, labels, dict(class_counts)
     
+    
     elif modeltype == 'object detection':
-        json_path = os.path.join(path, 'label.json')
-        images_dir = os.path.join(path, 'images')
+        json_files = [f for f in os.listdir(path) if f.endswith('.json')]
+        json_path = os.path.join(path, json_files[0])
+        images_dir = path
 
         with open(json_path, 'r') as f:
-            label = json.load(f)
+            label_data = json.load(f)
 
         # Build lookup tables
-        id_to_filename = {img['id']: img['file_name'] for img in label['images']}
+        id_to_filename = {img['id']: img['file_name'] for img in label_data['images']}
         id_to_annotations = defaultdict(list)
         class_counts = defaultdict(int)
-        category_id_to_name = {cat['id']: cat['name'] for cat in label['categories']}
+        category_id_to_name = {cat['id']: cat['name'] for cat in label_data['categories']}
 
-        for ann in label['annotations']:
+        for ann in label_data['annotations']:
             id_to_annotations[ann['image_id']].append(ann)
             class_counts[category_id_to_name[ann['category_id']]] += 1
 
         data = []
-        labels = []
-
         for image_id, file_name in id_to_filename.items():
             image_path = os.path.join(images_dir, file_name)
             if os.path.exists(image_path):
-                data.append(image_path)
-                bboxes = []
+                boxes = []
+                labels = []
                 for ann in id_to_annotations[image_id]:
-                    bbox = ann['bbox']  # [x, y, width, height]
-                    label = category_id_to_name[ann['category_id']]
-                    bboxes.append({'bbox': bbox, 'label': label})
-                labels.append(bboxes)
+                    x, y, w, h = ann['bbox']
+                    boxes.append([x, y, x + w, y + h])  # Convert from COCO format (xywh) to xyxy
+                    labels.append(ann['category_id'])
+                if boxes:  # Only include images with annotations
+                    data.append({
+                        'image_path': image_path,
+                        'boxes': boxes,
+                        'labels': labels
+                    })
 
-        return data, labels, dict(class_counts)
+        if not class_counts:
+            raise ValueError("No valid object detection data found in the specified path.")
+
+        return data, category_id_to_name, class_counts
+
     
     elif modeltype == 'text classification':
         data = []
@@ -104,6 +113,10 @@ def ReadData(path : str, modeltype : str):
                     raise ValueError("Missing 'label' or 'labels' field in line: " + line)
 
         stats['__total_tokens__'] = total_input_tokens
+
+        if not stats:
+            raise ValueError("No valid text classification data found in the specified path.")
+
         return data, labels, dict(stats)
 
     
@@ -142,11 +155,13 @@ def ReadData(path : str, modeltype : str):
             "__total_tokens__": total_input_tokens + total_target_tokens
         }
 
+        if not stats:
+            raise ValueError("No valid text generation data found in the specified path.")
+
         return inputs, targets, stats
 
     else:
-        raise ValueError(f"Unsupported path type: {path}")
-
+        raise ValueError(f"Unsupported model type: {modeltype}")
 
 def CheckImbalance(count):
     """
@@ -159,6 +174,9 @@ def CheckImbalance(count):
         imbalance: True if the dataset is imbalanced, False otherwise.
         class_imbalance: (dict) Dictionary containing the imbalance ratio for each class.
     """
+    if not count:  # Check if count is empty
+        return 'Empty', True, {}
+
     average = sum(count.values()) / len(count)
     if average < 50:
         size = 'Insufficient'
@@ -177,7 +195,6 @@ def CheckImbalance(count):
     for key,value in count.items():
         if value/average < 0.8 or value/average > 1.2:
             margin = value/average
-            print(average, margin)
             imbalance = True
             class_imbalance[key] = (margin-1) * 100
     return size, imbalance, class_imbalance

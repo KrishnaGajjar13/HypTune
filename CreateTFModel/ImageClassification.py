@@ -87,16 +87,33 @@ def log_trial_results(
     pd.DataFrame([row]).to_csv(log_file, mode="a", header=False, index=False)
 
 # Device independence: check and use available device
-def configure_device():
-    # Check if GPU is available and set TensorFlow device accordingly
-    if tf.config.list_physical_devices('GPU'):
+def configure_device(memory_limit_fraction=0.5):
+    """
+    Configure TensorFlow to use GPU if available and limit memory usage only when GPU is not available.
+    
+    Args:
+        memory_limit_fraction: Fraction of memory to allocate (default is 0.5 for 50%).
+    """
+    physical_devices = tf.config.list_physical_devices('GPU')
+    if physical_devices:
         print("GPU is available!")
-        physical_devices = tf.config.list_physical_devices('GPU')
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
-        return 'GPU'
+        try:
+            for device in physical_devices:
+                tf.config.experimental.set_memory_growth(device, True)
+        except Exception as e:
+            print(f"Error configuring GPU memory: {e}")
     else:
-        print("GPU not available, using CPU.")
-        return 'CPU'
+        print("GPU not available, limiting CPU memory usage.")
+        # Limit CPU memory usage
+        gpus = tf.config.list_physical_devices('CPU')
+        if gpus:
+            try:
+                tf.config.experimental.set_virtual_device_configuration(
+                    gpus[0],
+                    [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=int(memory_limit_fraction * 1024))]
+                )
+            except Exception as e:
+                print(f"Error configuring CPU memory: {e}")
 
 # Get the available device (GPU or CPU)
 device = configure_device()
@@ -238,7 +255,63 @@ def train(data, labels, Hypmode, n_trials=30):
     return study
 
 
-def ImageClassificationStudy(size: str, Hypmode, data, labels, imbalance: bool = False, class_imbalance: dict = None, class_counts: dict = None,trials : int = 100):
+def load_and_preprocess_images(file_paths, input_shape, batch_size=32):
+    """
+    Load images from file paths and preprocess them to the required input shape using TensorFlow's tf.data API.
+    
+    Args:
+        file_paths: List of image file paths
+        input_shape: Target shape (height, width) for resizing
+        batch_size: Number of images to process in a batch
+    
+    Returns:
+        A tf.data.Dataset object with preprocessed images
+    """
+    def preprocess_image(file_path):
+        # Read and decode the image
+        img = tf.io.read_file(file_path)
+        img = tf.image.decode_image(img, channels=3, expand_animations=False)
+        
+        # Resize to target input shape
+        img = tf.image.resize(img, input_shape)
+        
+        # Normalize pixel values to [0, 1]
+        img = img / 255.0
+        return img
+
+    # Create a TensorFlow dataset from file paths
+    dataset = tf.data.Dataset.from_tensor_slices(file_paths)
+    
+    # Map the preprocessing function with parallel calls
+    dataset = dataset.map(preprocess_image, num_parallel_calls=tf.data.AUTOTUNE)
+    
+    # Batch the dataset
+    dataset = dataset.batch(batch_size)
+    
+    # Prefetch to improve performance
+    dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
+    
+    return dataset
+
+def dataset_to_numpy(dataset):
+    """
+    Convert a tf.data.Dataset to NumPy arrays.
+    
+    Args:
+        dataset: A tf.data.Dataset object.
+    
+    Returns:
+        A tuple of NumPy arrays (data, labels).
+    """
+    data, labels = [], []
+    for batch in dataset:
+        data.append(batch[0].numpy())
+        labels.append(batch[1].numpy())
+    return np.concatenate(data), np.concatenate(labels)
+
+def ImageClassificationStudy(size: str, Hypmode: str, data, labels, imbalance: bool = False, 
+                           class_imbalance: dict = None, class_counts: dict = None, trials: int = 100, 
+                           log_file: str = "image_classification_study_log.csv"):
     """
     Main controller for selecting backbones and launching hyperparameter tuning.
     """
@@ -246,6 +319,16 @@ def ImageClassificationStudy(size: str, Hypmode, data, labels, imbalance: bool =
         raise ValueError(f"Unsupported size '{size}'. Choose from: {list(BACKBONE_CONFIGS.keys())}")
     
     candidate_backbones = BACKBONE_CONFIGS[size]
+    
+    # Create the CSV log file if it doesn't exist
+    create_csv_log_file(log_file)
+    
+    # Convert labels to numeric if they're strings
+    label_encoder = LabelEncoder()
+    numeric_labels = label_encoder.fit_transform(labels)
+    
+    # Check if data contains file paths
+    is_file_paths = isinstance(data, list) and len(data) > 0 and isinstance(data[0], str)
 
     # If conditions met, do bi-level optimization
     if size in ["medium", "large"] and Hypmode == "full":
@@ -255,13 +338,21 @@ def ImageClassificationStudy(size: str, Hypmode, data, labels, imbalance: bool =
 
         for model_fn, input_shape in candidate_backbones:
             print(f"\n🔍 Running inner optimization for backbone: {model_fn.__name__}")
+            
+            # Load and preprocess images if data is file paths
+            if is_file_paths:
+                print(f"Loading and preprocessing images to shape {input_shape}...")
+                processed_data = load_and_preprocess_images(data, input_shape)
+            else:
+                # If data is already loaded, just resize
+                processed_data = tf.image.resize(data, input_shape)
 
             # Define objective with the current backbone
             objective = create_objective(
                 model_fn=model_fn,
                 input_shape=input_shape,
-                data=tf.image.resize(data, input_shape),
-                labels=labels,
+                data=processed_data,
+                labels=numeric_labels,
                 Hypmode=Hypmode,
                 size=size,
                 imbalance=imbalance,
@@ -270,10 +361,23 @@ def ImageClassificationStudy(size: str, Hypmode, data, labels, imbalance: bool =
             )
 
             study = optuna.create_study(direction='maximize')
-            study.optimize(objective, n_trials=Hypmode.get("n_trials", 10))
+            study.optimize(objective, n_trials=trials)  # Use the `trials` argument directly
 
             score = study.best_value
             print(f"✅ Backbone {model_fn.__name__} achieved val accuracy: {score:.4f}")
+
+            # Log the best trial for this backbone
+            log_trial_results(
+                log_file=log_file,
+                trial_number=study.best_trial.number,
+                learning_rate=study.best_trial.params.get("learning_rate", None),
+                batch_size=study.best_trial.params.get("batch_size", None),
+                dropout_rate=study.best_trial.params.get("dropout_rate", None),
+                dense_units=study.best_trial.params.get("dense_units", None),
+                val_split=study.best_trial.params.get("val_split", None),
+                epochs=20 if Hypmode == "full" else 10,
+                val_accuracy=score
+            )
 
             if score > best_score:
                 best_score = score
@@ -287,12 +391,37 @@ def ImageClassificationStudy(size: str, Hypmode, data, labels, imbalance: bool =
         # Regular loop over backbones (no bi-level optimization)
         for model_fn, input_shape in candidate_backbones:
             print(f"\n🎯 Running standard optimization for backbone: {model_fn.__name__}")
+            
+            # Load and preprocess images if data is file paths
+            if is_file_paths:
+                print(f"Loading and preprocessing images to shape {input_shape}...")
+                processed_data = load_and_preprocess_images(data, input_shape)
+                processed_data = processed_data.map(lambda x: (x, numeric_labels))  # Add labels to dataset
+            else:
+                # If data is already loaded, just resize
+                processed_data = tf.image.resize(data, input_shape)
+            
+            # Convert tf.data.Dataset to NumPy arrays if necessary
+            if is_file_paths:
+                processed_data, numeric_labels = dataset_to_numpy(processed_data)
+
+            # --- Data Split ---
+            X_train, X_val, y_train, y_val = train_test_split(
+                processed_data, numeric_labels, test_size=0.2, stratify=numeric_labels, random_state=42
+            )
+            
+            # Inspect the shape of one batch from the dataset
+            if is_file_paths:
+                for batch in processed_data.take(1):
+                    print(f"Processed batch shape: {batch.shape}")
+            else:
+                print(f"Processed data shape: {processed_data.shape}")
 
             objective = create_objective(
                 model_fn=model_fn,
                 input_shape=input_shape,
-                data=tf.image.resize(data, input_shape),
-                labels=labels,
+                data=X_train,
+                labels=y_train,
                 Hypmode=Hypmode,
                 size=size,
                 imbalance=imbalance,
@@ -300,11 +429,24 @@ def ImageClassificationStudy(size: str, Hypmode, data, labels, imbalance: bool =
                 class_counts=class_counts
             )
 
+            # Reset the study for each backbone
             study = optuna.create_study(direction='maximize')
-            study.optimize(objective, n_trials=Hypmode.get("n_trials", 10))
+            study.optimize(objective, n_trials=trials)  # Use the `trials` argument directly
+
+            # Log the best trial for this backbone
+            log_trial_results(
+                log_file=log_file,
+                trial_number=study.best_trial.number,
+                learning_rate=study.best_trial.params.get("learning_rate", None),
+                batch_size=study.best_trial.params.get("batch_size", None),
+                dropout_rate=study.best_trial.params.get("dropout_rate", None),
+                dense_units=study.best_trial.params.get("dense_units", None),
+                val_split=study.best_trial.params.get("val_split", None),
+                epochs=20 if Hypmode == "full" else 10,
+                val_accuracy=study.best_value
+            )
 
             print(f"     Backbone {model_fn.__name__} achieved val accuracy: {study.best_value:.4f}")
-
 
 def main():
     # Dummy data example

@@ -1,9 +1,9 @@
-from ImageClassification import ImageClassificationStudy
-from ObjectDetection import ObjectDetectionStudy
-from MachineTranslation import MachineTranslationStudy
-from TextClassification import TextClassificationStudy
+from CreateTFModel.ImageClassification import ImageClassificationStudy
+from CreateTFModel.ObjectDetection import ObjectDetectionStudy
+from CreateTFModel.MachineTranslation import MachineTranslationStudy
+from CreateTFModel.TextClassification import TextClassificationStudy
 
-def CreateTFModel(Task: str, Hypmode : str ,size: str, data, labels, imbalance: bool = False, class_imbalance: dict = None, class_counts: dict = None,trials : int = 100):
+def CreateTFModel(Task: str, Hypmode : str ,size: str, imbalance: bool = False, class_imbalance: dict = None,data : list = [], labels = [], class_counts: dict = None,trials : int = 100):
     if Task == "image classification":
         ImageClassificationStudy(size,Hypmode ,data, labels, imbalance, class_imbalance, class_counts , trials)
     
