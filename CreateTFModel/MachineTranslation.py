@@ -167,6 +167,12 @@ def MachineTranslationStudy(
     sequences = tokenizer.texts_to_sequences(texts)
     padded_sequences = pad_sequences(sequences, maxlen=max_sequence_length, padding="post", truncating="post")
 
+    # Split data without stratification
+    val_split = 0.2
+    X_train, X_val, y_train, y_val = train_test_split(
+        padded_sequences, labels, test_size=val_split, random_state=42
+    )
+
     # Log dataset imbalance information if provided
     if imbalance:
         print("Dataset is imbalanced.")
@@ -194,7 +200,9 @@ def MachineTranslationStudy(
         if size in ["medium", "large"] and Hypmode == "full":
             val_split = trial.suggest_categorical("val_split", [0.15, 0.25, 0.35])
 
-        X_train, X_val, y_train, y_val = train_test_split(padded_sequences, labels, test_size=val_split, stratify=labels)
+        X_train, X_val, y_train, y_val = train_test_split(
+            padded_sequences, labels, test_size=val_split, random_state=42
+        )
 
         if size in ["small", "medium", "large"]:
             # Non-transformer models (for small datasets)
