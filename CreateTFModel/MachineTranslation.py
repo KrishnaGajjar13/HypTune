@@ -207,7 +207,13 @@ def MachineTranslationStudy(
 
         # Non-transformer models
         model = build_non_transformer_model(trial, architecture, max_sequence_length, max_vocab_size, num_classes)
-
+        # Compile the model
+        learning_rate = trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True)
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+            loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"]
+        )
         epochs = 10 if Hypmode in ["min", "moderate"] else 20
         callbacks = [EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True)]
 
