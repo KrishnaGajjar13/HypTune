@@ -195,7 +195,8 @@ def MachineTranslationStudy(
     else:
         architectures = model_pool["large"]
 
-    def objective(trial, architecture):
+    def objective(trial):
+        architecture = trial.suggest_categorical("architecture", architectures)
         val_split = 0.2
         if size in ["medium", "large"] and Hypmode == "full":
             val_split = trial.suggest_categorical("val_split", [0.15, 0.25, 0.35])
@@ -209,9 +210,9 @@ def MachineTranslationStudy(
             model = build_non_transformer_model(trial, architecture, max_sequence_length, max_vocab_size, num_classes)
         else:
             # Transformer models (for medium/large datasets)
-            model, tokenizer = load_translation_model("en", "fr") # Example: English to French
+            model, tokenizer = load_translation_model("en", "fr")  # Example: English to French
             return model
-        
+
         epochs = 10 if Hypmode in ["min", "moderate"] else 20
         callbacks = [EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True)]
 
@@ -247,8 +248,12 @@ def MachineTranslationStudy(
 
         return val_acc
 
-    # Objective function
-    objective(None, architectures[0])
+    # Create and optimize the study
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=num_trials)
+
+    print("Study complete. Best trial:")
+    print(study.best_trial)
 
 def main():
     # Example parallel dataset
