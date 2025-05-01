@@ -156,16 +156,16 @@ def MachineTranslationStudy(
     max_vocab_size = 20000
     max_sequence_length = 200
 
-    # Encode labels
-    label_encoder = LabelEncoder()
-    labels = label_encoder.fit_transform(labels)
-    num_classes = len(np.unique(labels))
-
     # Tokenize text
     tokenizer = Tokenizer(num_words=max_vocab_size, oov_token="<OOV>")
     tokenizer.fit_on_texts(texts)
     sequences = tokenizer.texts_to_sequences(texts)
     padded_sequences = pad_sequences(sequences, maxlen=max_sequence_length, padding="post", truncating="post")
+
+    # Encode labels
+    label_encoder = LabelEncoder()
+    labels = label_encoder.fit_transform(labels)
+    num_classes = len(np.unique(labels))
 
     # Split data without stratification
     val_split = 0.2
@@ -205,13 +205,8 @@ def MachineTranslationStudy(
             padded_sequences, labels, test_size=val_split, random_state=42
         )
 
-        if size in ["small", "medium", "large"]:
-            # Non-transformer models (for small datasets)
-            model = build_non_transformer_model(trial, architecture, max_sequence_length, max_vocab_size, num_classes)
-        else:
-            # Transformer models (for medium/large datasets)
-            model, tokenizer = load_translation_model("en", "fr")  # Example: English to French
-            return model
+        # Non-transformer models
+        model = build_non_transformer_model(trial, architecture, max_sequence_length, max_vocab_size, num_classes)
 
         epochs = 10 if Hypmode in ["min", "moderate"] else 20
         callbacks = [EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True)]
@@ -286,8 +281,8 @@ def main():
     MachineTranslationStudy(
         size=dataset_size,
         Hypmode="full",
-        source_texts=source_texts,
-        target_texts=target_texts,
+        texts=source_texts,
+        labels=target_texts,
         num_trials=10,
         log_csv_path="translation_trials_log.csv"
     )
