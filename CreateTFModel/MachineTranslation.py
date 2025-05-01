@@ -87,27 +87,27 @@ def build_non_transformer_model(trial, architecture, input_len, vocab_size, num_
     model.add(Embedding(vocab_size, embedding_dim, input_length=input_len))
 
     if architecture == "SimpleRNN":
-        model.add(SimpleRNN(rnn_units, activation="tanh"))
+        model.add(SimpleRNN(rnn_units, activation="tanh", implementation=2))
     elif architecture == "LSTM":
-        model.add(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False))
+        model.add(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False, implementation=2))
     elif architecture == "GRU":
-        model.add(GRU(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True))
+        model.add(GRU(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True, implementation=2))
     elif architecture == "BidirectionalLSTM":
-        model.add(Bidirectional(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False)))
+        model.add(Bidirectional(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False, implementation=2)))
     elif architecture == "BidirectionalGRU":
-        model.add(Bidirectional(GRU(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True)))
+        model.add(Bidirectional(GRU(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True, implementation=2)))
     elif architecture == "StackedLSTM":
-        model.add(LSTM(rnn_units, return_sequences=True, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False))
+        model.add(LSTM(rnn_units, return_sequences=True, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False, implementation=2))
         model.add(Dropout(dropout_rate))
-        model.add(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False))
+        model.add(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False, implementation=2))
     elif architecture == "StackedBidirectionalLSTM":
-        model.add(Bidirectional(LSTM(rnn_units, return_sequences=True, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False)))
+        model.add(Bidirectional(LSTM(rnn_units, return_sequences=True, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False, implementation=2)))
         model.add(Dropout(dropout_rate))
-        model.add(Bidirectional(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False)))
+        model.add(Bidirectional(LSTM(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, unroll=False, implementation=2)))
     elif architecture == "StackedBidirectionalGRU":
-        model.add(Bidirectional(GRU(rnn_units, return_sequences=True, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True)))
+        model.add(Bidirectional(GRU(rnn_units, return_sequences=True, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True, implementation=2)))
         model.add(Dropout(dropout_rate))
-        model.add(Bidirectional(GRU(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True)))
+        model.add(Bidirectional(GRU(rnn_units, activation="tanh", recurrent_activation="sigmoid", use_bias=True, reset_after=True, implementation=2)))
 
     model.add(Dropout(dropout_rate))
     model.add(Dense(num_classes, activation="softmax"))
