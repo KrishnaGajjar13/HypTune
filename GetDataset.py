@@ -251,6 +251,8 @@ def DatasetCategory(modeltype, count):
             size = 'Medium'
         elif count['__total_sentences__'] <= 100000 and count['__total_tokens__'] > 30000:
             size = 'Large'
+        else:
+            size = 'Unknown'  # Assign a default value to avoid UnboundLocalError
         imbalance = False
         class_imbalance = {}
         return size, imbalance, class_imbalance
